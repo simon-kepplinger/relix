@@ -15,11 +15,11 @@ set -e # Exit early if any commands fail
 (
   cd "$(dirname "$0")" # Ensure compile steps are run within the repository directory
   mix escript.build
-  mv codecrafters_redis /tmp/codecrafters-build-redis-elixir
+  mv relix /tmp/relix
 )
 
 # Copied from .codecrafters/run.sh
 #
 # - Edit this to change how your program runs locally
 # - Edit .codecrafters/run.sh to change how your program runs remotely
-exec /tmp/codecrafters-build-redis-elixir "$@"
+exec /tmp/relix "$@"

@@ -9,4 +9,4 @@
 set -e # Exit on failure
 
 mix escript.build
-mv codecrafters_redis /tmp/codecrafters-build-redis-elixir
+mv relix /tmp/relix

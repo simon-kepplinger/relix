@@ -8,4 +8,4 @@
 
 set -e # Exit on failure
 
-exec /tmp/codecrafters-build-redis-elixir "$@"
+exec /tmp/relix "$@"
