@@ -1,39 +1,47 @@
 defmodule Server do
+  require Logger
   use Application
 
   def start(_type, _args) do
-    Supervisor.start_link([{Task, fn -> Server.listen() end}], strategy: :one_for_one)
+    children = [
+      {DynamicSupervisor, name: Relix.ConnectionSupervisor, strategy: :one_for_one},
+      {Task, fn -> Server.listen() end}
+    ]
+
+    Supervisor.start_link(children, strategy: :one_for_one, name: Relix.Supervisor)
   end
 
   @doc """
   Listen for incoming connections
   """
   def listen() do
-    IO.puts("oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo ")
+    Logger.info("oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo")
 
-    {:ok, socket} = :gen_tcp.listen(6379, [:binary, active: true, reuseaddr: true])
+    {:ok, socket} = :gen_tcp.listen(6379, [:binary, active: false, reuseaddr: true])
 
-    IO.puts("Server initialized")
-    IO.puts("Ready to accept connections tcp")
+    Logger.info("Server initialized")
+    Logger.info("Ready to accept connections tcp")
 
-    {:ok, _client} = :gen_tcp.accept(socket)
-
-    # handles single connection
-    process()
+    accept(socket)
   end
 
-  def process() do
-    receive do
-      {:tcp, client, _data} ->
-        :gen_tcp.send(client, "+PONG\r\n")
-        process()
+  @doc """
+  Handle incoming connections and spawn a new process for each client
+  """
+  def accept(socket) do
+    {:ok, client} = :gen_tcp.accept(socket)
 
-      {:tcp_closed, _client} ->
-        IO.puts("Connection closed")
+    Logger.debug("Client connected #{inspect(client)}")
 
-      {:tcp_error, _client, reason} ->
-        IO.puts("Error: #{reason}")
-    end
+    {:ok, pid} =
+      DynamicSupervisor.start_child(
+        Relix.ConnectionSupervisor,
+        {Relix.Connection, client}
+      )
+
+    :ok = :gen_tcp.controlling_process(client, pid)
+
+    accept(socket)
   end
 end
 
