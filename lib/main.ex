@@ -3,6 +3,7 @@ defmodule Relix.Application do
 
   def start(_type, _args) do
     children = [
+      Relix.Store,
       {DynamicSupervisor, name: Relix.ConnectionSupervisor, strategy: :one_for_one},
       Relix.Server
     ]
