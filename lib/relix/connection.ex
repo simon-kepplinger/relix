@@ -19,7 +19,7 @@ defmodule Relix.Connection do
   end
 
   def handle_info({:tcp_closed, _socket}, state) do
-    Logger.debug("Connection closed #{inspect(state.socket)}")
+    Logger.debug("Connection closed #{inspect(state.client)}")
     {:stop, :normal, state}
   end
 
