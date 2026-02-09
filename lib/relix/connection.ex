@@ -1,7 +1,12 @@
 defmodule Relix.Connection do
+  alias Relix.Resp
+  alias Relix.CommandDispatcher
+
   use GenServer
 
   require Logger
+
+  defstruct [:client]
 
   def start_link(client) do
     GenServer.start_link(__MODULE__, client)
@@ -13,8 +18,14 @@ defmodule Relix.Connection do
     {:ok, %{client: client}}
   end
 
-  def handle_info({:tcp, socket, _}, state) do
-    :gen_tcp.send(socket, "+PONG\r\n")
+  def handle_info({:tcp, socket, data}, state) do
+    Logger.debug("received #{inspect(data)}")
+
+    {:ok, command} = Resp.decode(data)
+    {:reply, resp} = CommandDispatcher.dispatch(command)
+
+    :gen_tcp.send(socket, resp)
+
     {:noreply, state}
   end
 
@@ -25,6 +36,6 @@ defmodule Relix.Connection do
 
   def handle_info({:tcp_error, _socket, reason}, state) do
     Logger.warning("Tcp Error: #{reason}")
-    {:stop, :normal, state}
+    {:stop, {:error, reason}, state}
   end
 end
