@@ -18,6 +18,9 @@ defmodule Relix.Resp do
       binary when is_binary(binary) ->
         "$" <> Integer.to_string(byte_size(binary)) <> "\r\n" <> binary <> "\r\n"
 
+      number when is_number(number) ->
+        ":" <> Integer.to_string(number) <> "\r\n"
+
       _ ->
         raise ArgumentError, "Unsupported type for RESP encoding: #{inspect(value)}"
     end

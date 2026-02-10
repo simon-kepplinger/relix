@@ -1,6 +1,7 @@
 defmodule Relix.CommandDispatcher do
   require Logger
 
+  alias Relix.Commands.Rpush
   alias Relix.Commands.Ping
   alias Relix.Commands.Echo
   alias Relix.Commands.Set
@@ -14,7 +15,8 @@ defmodule Relix.CommandDispatcher do
       "ECHO" -> Echo.dispatch(data)
       "SET" -> Set.dispatch(data)
       "GET" -> Get.dispatch(data)
-      _ -> {:reply, "-ERR unknown command '#{command}\r\n"}
+      "RPUSH" -> Rpush.dispatch(data)
+      _ -> {:reply, "-ERR unknown command #{command}\r\n"}
     end
   end
 end
