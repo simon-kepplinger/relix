@@ -30,7 +30,6 @@ defmodule Relix.Commands.Rpush do
   end
 
   def append({len, list}, value) do
-    IO.inspect(:queue.in(value, list))
     {len + 1, :queue.in(value, list)}
   end
 end
