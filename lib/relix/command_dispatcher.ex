@@ -9,6 +9,7 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Rpush
   alias Relix.Commands.Lpush
   alias Relix.Commands.Llen
+  alias Relix.Commands.Lpop
 
   def dispatch([command | data]) do
     Logger.debug("dispatch #{command}")
@@ -22,6 +23,7 @@ defmodule Relix.CommandDispatcher do
       "LPUSH" -> Lpush.dispatch(data)
       "LRANGE" -> Lrange.dispatch(data)
       "LLEN" -> Llen.dispatch(data)
+      "LPOP" -> Lpop.dispatch(data)
       _ -> {:reply, "-ERR unknown command #{command}\r\n"}
     end
   end
