@@ -39,5 +39,5 @@ defmodule Relix.Commands.Lrange do
     do: range(len, from, len + to)
 
   def range(len, from, to),
-    do: {from, min(to, len - 1)}
+    do: {min(max(from, 0), len - 1), min(to, len - 1)}
 end
