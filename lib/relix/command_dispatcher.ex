@@ -6,7 +6,6 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Set
   alias Relix.Commands.Get
   alias Relix.Commands.Lrange
-  alias Relix.Commands.Rpush
   alias Relix.Commands.Lpush
   alias Relix.Commands.Llen
   alias Relix.Commands.Lpop
@@ -19,8 +18,8 @@ defmodule Relix.CommandDispatcher do
       "ECHO" -> Echo.dispatch(data)
       "SET" -> Set.dispatch(data)
       "GET" -> Get.dispatch(data)
-      "RPUSH" -> Rpush.dispatch(data)
-      "LPUSH" -> Lpush.dispatch(data)
+      "RPUSH" -> Lpush.dispatch(:right, data)
+      "LPUSH" -> Lpush.dispatch(:left, data)
       "LRANGE" -> Lrange.dispatch(data)
       "LLEN" -> Llen.dispatch(data)
       "LPOP" -> Lpop.dispatch(data)

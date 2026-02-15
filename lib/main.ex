@@ -4,6 +4,9 @@ defmodule Relix.Application do
   def start(_type, _args) do
     children = [
       Relix.Store,
+      {Registry, keys: :unique, name: Relix.Keyspace.Registry},
+      # consider putting under a separate store supervisor
+      {DynamicSupervisor, name: Relix.Keyspace.Supervisor, strategy: :one_for_one},
       {DynamicSupervisor, name: Relix.ConnectionSupervisor, strategy: :one_for_one},
       Relix.Server
     ]

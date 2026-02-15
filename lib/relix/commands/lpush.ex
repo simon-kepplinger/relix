@@ -1,17 +1,19 @@
 defmodule Relix.Commands.Lpush do
   alias Relix.Resp
 
-  def dispatch([key | value]) do
-    Relix.Store.get(key)
-    |> then(&(&1 || {:list, 0, :queue.new()}))
-    |> lpush({key, value})
+  def dispatch(side, [key | value]) do
+    Relix.Keyspace.Serializer.run(key, fn ->
+      Relix.Store.get(key)
+      |> then(&(&1 || {:list, 0, :queue.new()}))
+      |> lpush({side, key, value})
+    end)
   end
 
   def dispatch(_),
     do: {:reply, "-ERR wrong number of arguments for lpush command\r\n"}
 
-  def lpush({:list, len, list}, {key, value}) do
-    {len, list} = prepend({len, list}, value)
+  def lpush({:list, len, list}, {side, key, value}) do
+    {len, list} = push({len, list}, side, value)
 
     Relix.Store.set(key, {:list, len, list})
 
@@ -21,15 +23,17 @@ defmodule Relix.Commands.Lpush do
   def lpush(_),
     do: {:reply, "-ERR wrong type of value\r\n"}
 
-  def prepend(len_list, []), do: len_list
+  def push(len_list, _, []), do: len_list
 
-  def prepend(len_list, [value | rest]) do
+  def push(len_list, side, [value | rest]) do
     len_list
-    |> prepend(value)
-    |> prepend(rest)
+    |> push(side, value)
+    |> push(side, rest)
   end
 
-  def prepend({len, list}, value) do
-    {len + 1, :queue.in_r(value, list)}
-  end
+  def push({len, list}, :left, value),
+    do: {len + 1, :queue.in_r(value, list)}
+
+  def push({len, list}, :right, value),
+    do: {len + 1, :queue.in(value, list)}
 end

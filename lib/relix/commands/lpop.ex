@@ -6,8 +6,10 @@ defmodule Relix.Commands.Lpop do
         _ -> 1
       end
 
-    Relix.Store.get(key)
-    |> lpop(key, n)
+    Relix.Keyspace.Serializer.run(key, fn ->
+      Relix.Store.get(key)
+      |> lpop(key, n)
+    end)
   end
 
   def lpop({:list, len, list}, key, n) when len > 0 do
