@@ -1,5 +1,5 @@
 defmodule Relix.Commands.Ping do
   def dispatch() do
-    {:reply, "+PONG\r\n"}
+    {:simple, "PONG"}
   end
 end

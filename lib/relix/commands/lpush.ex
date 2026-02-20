@@ -1,27 +1,28 @@
 defmodule Relix.Commands.Lpush do
-  alias Relix.Resp
+  def dispatch(side, [key | values]) do
+    Relix.Keyspace.Serializer.run(key, fn consume ->
+      {values, n} = consume.(values)
 
-  def dispatch(side, [key | value]) do
-    Relix.Keyspace.Serializer.run(key, fn ->
       Relix.Store.get(key)
       |> then(&(&1 || {:list, 0, :queue.new()}))
-      |> lpush({side, key, value})
+      |> lpush({side, key, values})
+      |> Kernel.+(n)
     end)
   end
 
   def dispatch(_),
     do: {:reply, "-ERR wrong number of arguments for lpush command\r\n"}
 
-  def lpush({:list, len, list}, {side, key, value}) do
-    {len, list} = push({len, list}, side, value)
+  def lpush({:list, len, list}, {side, key, values}) do
+    {len, list} = push({len, list}, side, values)
 
     Relix.Store.set(key, {:list, len, list})
 
-    {:reply, Resp.encode(len)}
+    len
   end
 
   def lpush(_),
-    do: {:reply, "-ERR wrong type of value\r\n"}
+    do: {:error, "ERR wrong type of value"}
 
   def push(len_list, _, []), do: len_list
 

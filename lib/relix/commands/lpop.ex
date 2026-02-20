@@ -6,7 +6,7 @@ defmodule Relix.Commands.Lpop do
         _ -> 1
       end
 
-    Relix.Keyspace.Serializer.run(key, fn ->
+    Relix.Keyspace.Serializer.run(key, fn _ ->
       Relix.Store.get(key)
       |> lpop(key, n)
     end)
@@ -18,24 +18,19 @@ defmodule Relix.Commands.Lpop do
 
     Relix.Store.set(key, {:list, len, list})
 
-    reply =
-      case popped do
-        [single] -> single
-        multiple -> multiple
-      end
-
-    {:reply, Relix.Resp.encode(reply)}
+    case popped do
+      [single] -> single
+      multiple -> multiple
+    end
   end
 
-  def lpop(_, _, _) do
-    {:reply, Relix.Resp.encode(nil)}
-  end
+  def lpop(_, _, _), do: nil
 
-  def out(list, n, acc) when n <= 0 do
+  defp out(list, n, acc) when n <= 0 do
     {Enum.reverse(acc), list}
   end
 
-  def out(list, n, acc) when n > 0 do
+  defp out(list, n, acc) when n > 0 do
     case :queue.out(list) do
       {{:value, value}, list} ->
         out(list, n - 1, [value | acc])

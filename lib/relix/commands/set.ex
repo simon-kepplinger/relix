@@ -24,6 +24,6 @@ defmodule Relix.Commands.Set do
   end
 
   defp ack() do
-    {:reply, "+OK\r\n"}
+    {:simple, "OK"}
   end
 end

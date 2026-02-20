@@ -1,6 +1,4 @@
 defmodule Relix.Commands.Lrange do
-  alias Relix.Resp
-
   def dispatch([key, from, to]) do
     list = Relix.Store.get(key)
 
@@ -16,11 +14,11 @@ defmodule Relix.Commands.Lrange do
 
     range = split(list, from, to)
 
-    {:reply, Resp.encode(:queue.to_list(range))}
+    :queue.to_list(range)
   end
 
   def lrange(_, _, _),
-    do: {:reply, "*0\r\n"}
+    do: []
 
   def split(_, from, to) when to < from,
     do: :queue.new()
