@@ -1,5 +1,8 @@
 defmodule Relix.Commands.Get do
   def dispatch([key]) do
-    Relix.Store.get(key)
+    case Relix.Store.get(key) do
+      {_, value} -> value
+      _ -> nil
+    end
   end
 end
