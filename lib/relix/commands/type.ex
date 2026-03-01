@@ -2,7 +2,7 @@ defmodule Relix.Commands.Type do
   def dispatch([key]) do
     case Relix.Store.get(key) do
       nil -> {:simple, "none"}
-      {type, _} -> {:simple, to_string(type)}
+      val -> {:simple, val |> elem(0) |> to_string()}
     end
   end
 end

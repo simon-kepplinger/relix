@@ -1,32 +1,34 @@
 defmodule Relix.Store do
   use GenServer
 
+  @table __MODULE__
+
   def start_link(_) do
     GenServer.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
   def init(_) do
-    :ets.new(__MODULE__, [
+    :ets.new(@table, [
       :named_table,
       :set,
       :public,
       read_concurrency: true,
-      write_concurrency: true
+      write_concurrency: :auto
     ])
 
     {:ok, nil}
   end
 
   def set(key, value) do
-    :ets.insert(__MODULE__, {key, value})
+    :ets.insert(@table, {key, value})
   end
 
   def set(key, value, ttl_ms) do
-    :ets.insert(__MODULE__, {key, value, now() + ttl_ms})
+    :ets.insert(@table, {key, value, now() + ttl_ms})
   end
 
   def get(key) do
-    case :ets.lookup(__MODULE__, key) do
+    case :ets.lookup(@table, key) do
       [{^key, value}] -> value
       [{^key, value, exp}] -> check_exp({key, value, exp})
       _ -> nil
@@ -37,7 +39,7 @@ defmodule Relix.Store do
     if now() < exp do
       value
     else
-      :ets.delete(__MODULE__, key)
+      :ets.delete(@table, key)
       nil
     end
   end
