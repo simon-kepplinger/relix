@@ -28,6 +28,16 @@ defmodule Relix.Store.Stream do
     id
   end
 
+  def gt(key, id) do
+    :ets.select(@table, [
+      {
+        {{:"$1", :"$2"}, :"$3"},
+        [{:==, :"$1", key}, {:>, :"$2", id}],
+        [{{:"$2", :"$3"}}]
+      }
+    ])
+  end
+
   def range(key, start_id, stop_id) do
     :ets.select(@table, [
       {
@@ -36,6 +46,5 @@ defmodule Relix.Store.Stream do
         [{{:"$2", :"$3"}}]
       }
     ])
-    |> IO.inspect(label: "Range result")
   end
 end
