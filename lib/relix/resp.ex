@@ -15,11 +15,11 @@ defmodule Relix.Resp do
       :null_array ->
         "*-1\r\n"
 
-      list when is_list(list) ->
-        "*" <> Integer.to_string(length(list)) <> "\r\n" <> Enum.map_join(list, "", &encode/1)
-
       {:simple, message} ->
         "+" <> message <> "\r\n"
+
+      {:error, message} ->
+        "-" <> message <> "\r\n"
 
       binary when is_binary(binary) ->
         "$" <> Integer.to_string(byte_size(binary)) <> "\r\n" <> binary <> "\r\n"
@@ -27,8 +27,17 @@ defmodule Relix.Resp do
       number when is_number(number) ->
         ":" <> Integer.to_string(number) <> "\r\n"
 
-      {:error, message} ->
-        "-" <> message <> "\r\n"
+      tuple when is_tuple(tuple) ->
+        Tuple.to_list(tuple)
+        |> encode()
+
+      map when is_map(map) ->
+        map
+        |> Enum.flat_map(&Tuple.to_list/1)
+        |> encode()
+
+      list when is_list(list) ->
+        "*" <> Integer.to_string(length(list)) <> "\r\n" <> Enum.map_join(list, "", &encode/1)
 
       _ ->
         raise ArgumentError, "Unsupported type for RESP encoding: #{inspect(value)}"

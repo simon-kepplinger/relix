@@ -13,6 +13,7 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Blpop
   alias Relix.Commands.Type
   alias Relix.Commands.Xadd
+  alias Relix.Commands.Xrange
 
   def dispatch([command | data]) do
     Logger.debug("dispatch #{command}")
@@ -31,6 +32,7 @@ defmodule Relix.CommandDispatcher do
         "BLPOP" -> Blpop.dispatch(data)
         "TYPE" -> Type.dispatch(data)
         "XADD" -> Xadd.dispatch(data)
+        "XRANGE" -> Xrange.dispatch(data)
         _ -> {:error, "ERR unknown command #{command}"}
       end
 

@@ -8,8 +8,6 @@ defmodule Relix.Commands.Xadd do
 
       with {:ok, id} <- validate_id(id, last_id) do
         Relix.Store.Stream.set(key, {id, kv_map})
-
-        "#{elem(id, 0)}-#{elem(id, 1)}"
       end
     end)
   end

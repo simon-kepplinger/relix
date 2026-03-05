@@ -21,6 +21,21 @@ defmodule Relix.Store.Stream do
 
   def set(key, {id, values}) do
     Relix.Store.set(key, {:stream, id})
+    id = "#{elem(id, 0)}-#{elem(id, 1)}"
+
     :ets.insert(@table, {{key, id}, values})
+
+    id
+  end
+
+  def range(key, start_id, stop_id) do
+    :ets.select(@table, [
+      {
+        {{:"$1", :"$2"}, :"$3"},
+        [{:==, :"$1", key}, {:>=, :"$2", start_id}, {:"=<", :"$2", stop_id}],
+        [{{:"$2", :"$3"}}]
+      }
+    ])
+    |> IO.inspect(label: "Range result")
   end
 end
