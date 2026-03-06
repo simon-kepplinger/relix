@@ -19,9 +19,11 @@ defmodule Relix.Store.Stream do
     {:ok, nil}
   end
 
+  def to_id({ts, seq}), do: "#{ts}-#{seq}"
+
   def set(key, {id, values}) do
     Relix.Store.set(key, {:stream, id})
-    id = "#{elem(id, 0)}-#{elem(id, 1)}"
+    id = to_id(id)
 
     :ets.insert(@table, {{key, id}, values})
 

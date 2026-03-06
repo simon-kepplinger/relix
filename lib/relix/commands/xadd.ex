@@ -1,13 +1,17 @@
 defmodule Relix.Commands.Xadd do
   def dispatch([key, id | kv_list]) do
-    Relix.Keyspace.Serializer.run(key, fn _ ->
+    Relix.Keyspace.Serializer.run(key, fn consume ->
       last_id = get_last_id(key)
 
       id = parse_id(id, last_id)
       kv_map = kv_list_to_map(kv_list)
 
       with {:ok, id} <- validate_id(id, last_id) do
-        Relix.Store.Stream.set(key, {id, kv_map})
+        id = Relix.Store.Stream.set(key, {id, kv_map})
+
+        consume.([[id, kv_map]])
+
+        id
       end
     end)
   end
