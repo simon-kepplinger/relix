@@ -6,7 +6,7 @@ defmodule Relix.Connection do
 
   require Logger
 
-  defstruct [:client]
+  defstruct [:client, :transaction]
 
   def start_link(client) do
     GenServer.start_link(__MODULE__, client)
@@ -15,18 +15,18 @@ defmodule Relix.Connection do
   def init(client) do
     :inet.setopts(client, active: true)
 
-    {:ok, %{client: client}}
+    {:ok, %{client: client, transaction: nil}}
   end
 
   def handle_info({:tcp, socket, data}, state) do
     Logger.debug("received #{inspect(data)}")
 
     {:ok, command} = Resp.decode(data)
-    {:reply, resp} = CommandDispatcher.dispatch(command)
+    {:reply, resp, transaction} = CommandDispatcher.dispatch(command, state.transaction)
 
     :gen_tcp.send(socket, resp)
 
-    {:noreply, state}
+    {:noreply, %{state | transaction: transaction}}
   end
 
   def handle_info({:tcp_closed, _socket}, state) do

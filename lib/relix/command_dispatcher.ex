@@ -2,6 +2,8 @@ defmodule Relix.CommandDispatcher do
   require Logger
 
   alias Relix.Resp
+  alias Relix.Connection.Transaction
+
   alias Relix.Commands.Ping
   alias Relix.Commands.Echo
   alias Relix.Commands.Set
@@ -16,12 +18,41 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Xrange
   alias Relix.Commands.Xread
   alias Relix.Commands.Incr
+  alias Relix.Commands.Multi
+  alias Relix.Commands.Discard
+  alias Relix.Commands.Exec
 
-  def dispatch([command | data]) do
+  # parse and encode commands
+  def dispatch([command | data], transaction) do
+    command = String.upcase(command)
+
     Logger.debug("dispatch #{command}")
+    {reply, transaction} = dispatch(command, data, transaction)
 
+    {:reply, Resp.encode(reply), transaction}
+  end
+
+  def dispatch("MULTI", _, transaction) do
+    Multi.dispatch(transaction)
+  end
+
+  def dispatch("EXEC", _, transaction) do
+    Exec.dispatch(transaction)
+  end
+
+  def dispatch("DISCARD", _, transaction) do
+    Discard.dispatch(transaction)
+  end
+
+  def dispatch(command, data, %Transaction{} = transaction) do
+    transaction = Transaction.queue(transaction, command, data)
+
+    {{:simple, "QUEUED"}, transaction}
+  end
+
+  def dispatch(command, data, nil) do
     reply =
-      case String.upcase(command) do
+      case command do
         "PING" -> Ping.dispatch()
         "ECHO" -> Echo.dispatch(data)
         "SET" -> Set.dispatch(data)
@@ -37,9 +68,10 @@ defmodule Relix.CommandDispatcher do
         "XRANGE" -> Xrange.dispatch(data)
         "XREAD" -> Xread.dispatch(data)
         "INCR" -> Incr.dispatch(data)
+        "MULTI" -> Multi.dispatch(data)
         _ -> {:error, "ERR unknown command #{command}"}
       end
 
-    {:reply, Resp.encode(reply)}
+    {reply, nil}
   end
 end
