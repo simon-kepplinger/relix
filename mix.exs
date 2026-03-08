@@ -15,7 +15,10 @@ defmodule App.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {Relix.Application, []}
+      mod: {Relix.Application, []},
+      env: [
+        port: 6379
+      ]
     ]
   end
 

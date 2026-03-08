@@ -21,6 +21,7 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Multi
   alias Relix.Commands.Discard
   alias Relix.Commands.Exec
+  alias Relix.Commands.Info
 
   # parse and encode commands
   def dispatch([command | data], transaction) do
@@ -68,7 +69,7 @@ defmodule Relix.CommandDispatcher do
         "XRANGE" -> Xrange.dispatch(data)
         "XREAD" -> Xread.dispatch(data)
         "INCR" -> Incr.dispatch(data)
-        "MULTI" -> Multi.dispatch(data)
+        "INFO" -> Info.dispatch(data)
         _ -> {:error, "ERR unknown command #{command}"}
       end
 
