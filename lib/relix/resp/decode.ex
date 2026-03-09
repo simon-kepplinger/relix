@@ -1,6 +1,12 @@
 defmodule Relix.Resp.Decode do
   @crlf "\r\n"
 
+  # simple strings
+  def decode("+" <> simple_string) do
+    {value, rest} = read_line(simple_string)
+    {:ok, value, rest}
+  end
+
   # bulk strings
   def decode("$" <> bulk_string) do
     {length_str, data} = read_line(bulk_string)

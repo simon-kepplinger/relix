@@ -1,7 +1,6 @@
 defmodule Relix.CommandDispatcher do
   require Logger
 
-  alias Relix.Resp
   alias Relix.Connection.Transaction
 
   alias Relix.Commands.Ping
@@ -22,6 +21,8 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Discard
   alias Relix.Commands.Exec
   alias Relix.Commands.Info
+  alias Relix.Commands.Replconf
+  alias Relix.Commands.Psync
 
   # parse and encode commands
   def dispatch([command | data], transaction) do
@@ -30,7 +31,7 @@ defmodule Relix.CommandDispatcher do
     Logger.debug("dispatch #{command}")
     {reply, transaction} = dispatch(command, data, transaction)
 
-    {:reply, Resp.encode(reply), transaction}
+    {:reply, reply, transaction}
   end
 
   def dispatch("MULTI", _, transaction) do
@@ -70,6 +71,8 @@ defmodule Relix.CommandDispatcher do
         "XREAD" -> Xread.dispatch(data)
         "INCR" -> Incr.dispatch(data)
         "INFO" -> Info.dispatch(data)
+        "REPLCONF" -> Replconf.dispatch(data)
+        "PSYNC" -> Psync.dispatch(data)
         _ -> {:error, "ERR unknown command #{command}"}
       end
 

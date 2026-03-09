@@ -21,6 +21,9 @@ defmodule Relix.Resp do
       {:error, message} ->
         "-" <> message <> "\r\n"
 
+      {:file, binary} ->
+        "$" <> Integer.to_string(byte_size(binary)) <> "\r\n" <> binary
+
       binary when is_binary(binary) ->
         "$" <> Integer.to_string(byte_size(binary)) <> "\r\n" <> binary <> "\r\n"
 

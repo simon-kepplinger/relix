@@ -24,7 +24,7 @@ defmodule Relix.Connection do
     {:ok, command} = Resp.decode(data)
     {:reply, resp, transaction} = CommandDispatcher.dispatch(command, state.transaction)
 
-    :gen_tcp.send(socket, resp)
+    send_reply(socket, resp)
 
     {:noreply, %{state | transaction: transaction}}
   end
@@ -37,5 +37,13 @@ defmodule Relix.Connection do
   def handle_info({:tcp_error, _socket, reason}, state) do
     Logger.warning("Tcp Error: #{reason}")
     {:stop, {:error, reason}, state}
+  end
+
+  def send_reply(socket, {:batch, list}) do
+    Enum.each(list, &send_reply(socket, &1))
+  end
+
+  def send_reply(socket, reply) do
+    :gen_tcp.send(socket, Resp.encode(reply))
   end
 end
