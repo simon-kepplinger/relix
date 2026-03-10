@@ -37,14 +37,7 @@ defmodule Relix.Server do
     {:ok, client} = :gen_tcp.accept(socket)
 
     Logger.debug("Client connected #{inspect(client)}")
-
-    {:ok, pid} =
-      DynamicSupervisor.start_child(
-        Relix.ConnectionSupervisor,
-        {Relix.Connection, client}
-      )
-
-    :ok = :gen_tcp.controlling_process(client, pid)
+    Relix.Connection.start(client)
 
     accept(socket)
   end

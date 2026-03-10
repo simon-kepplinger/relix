@@ -1,6 +1,21 @@
 defmodule Relix.Resp.Decode do
   @crlf "\r\n"
 
+  def decode_all(data, acc \\ [])
+
+  def decode_all("", acc),
+    do: {:ok, Enum.reverse(acc), ""}
+
+  def decode_all(data, acc) do
+    case decode(data) do
+      {:ok, value, rest} ->
+        decode_all(rest, [value | acc])
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   # simple strings
   def decode("+" <> simple_string) do
     {value, rest} = read_line(simple_string)
@@ -35,6 +50,10 @@ defmodule Relix.Resp.Decode do
       count when count > 0 ->
         decode_array(data, count)
     end
+  end
+
+  def decode(_) do
+    {:error, :invalid_resp}
   end
 
   def decode_array(data, count, acc \\ [])

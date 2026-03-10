@@ -1,10 +1,16 @@
 defmodule Relix.Resp do
   alias Relix.Resp
 
-  def decode(data) do
-    {:ok, value, _} = Resp.Decode.decode(data)
+  def decode_all(data) do
+    {status, value, _} = Resp.Decode.decode_all(data)
 
-    {:ok, value}
+    {status, value}
+  end
+
+  def decode(data) do
+    {status, value, _} = Resp.Decode.decode(data)
+
+    {status, value}
   end
 
   def encode(value) do

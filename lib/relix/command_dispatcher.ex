@@ -76,6 +76,8 @@ defmodule Relix.CommandDispatcher do
         _ -> {:error, "ERR unknown command #{command}"}
       end
 
+    Relix.Replication.Master.propagate([command | data])
+
     {reply, nil}
   end
 end

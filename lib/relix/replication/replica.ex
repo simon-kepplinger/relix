@@ -11,8 +11,6 @@ defmodule Relix.Replication.Replica do
   def init(replicaof) do
     [host, port] = String.split(replicaof, " ")
 
-    IO.inspect({host, port})
-
     {:ok, socket} =
       :gen_tcp.connect(
         String.to_charlist(host),
@@ -24,6 +22,7 @@ defmodule Relix.Replication.Replica do
         ]
       )
 
+    # trigger handshake
     Process.send_after(self(), :handshake, 10)
 
     {
@@ -41,7 +40,7 @@ defmodule Relix.Replication.Replica do
 
     Logger.info("Starting handshake with master #{state.master_host}:#{state.master_port}")
 
-    {_, replid, offset} =
+    {:fullsync, replid, offset} =
       with {:ok, "PONG"} <- call_socket(["PING"], state),
            {:ok, "OK"} <- call_socket(["REPLCONF", "listening-port", "#{port}"], state),
            {:ok, "OK"} <- call_socket(["REPLCONF", "capa", "eof"], state),
@@ -51,14 +50,26 @@ defmodule Relix.Replication.Replica do
 
     Logger.info("Handshake with master successful, replid=#{replid}, offset=#{offset}")
 
+    # listen for commands from master
+    Relix.Connection.start(state.socket)
+
     {:noreply, state}
   end
 
   def parse_psync("FULLRESYNC " <> rest, state) do
     [replid, offset] = String.split(rest)
 
-    {:ok, file} = :gen_tcp.recv(state.socket, 0, 5_000)
-    Logger.info("Received RDB file of size #{byte_size(file)} bytes")
+    # read RDB file length first
+    {:ok, "$" <> length_str} = :gen_tcp.recv(state.socket, 0, 5_000)
+    rdb_length = length_str |> String.trim() |> String.to_integer()
+
+    IO.puts("Expecting RDB file of size #{rdb_length} bytes")
+
+    # read exact file bytes and switch back to raw mode
+    :inet.setopts(state.socket, packet: :raw)
+    {:ok, rdb_data} = :gen_tcp.recv(state.socket, rdb_length, 5_000)
+
+    Logger.info("Received RDB file of size #{byte_size(rdb_data)} bytes")
 
     {:fullsync, replid, String.to_integer(offset)}
   end
