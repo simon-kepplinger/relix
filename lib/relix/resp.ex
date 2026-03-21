@@ -2,15 +2,15 @@ defmodule Relix.Resp do
   alias Relix.Resp
 
   def decode_all(data) do
-    {status, value, _} = Resp.Decode.decode_all(data)
+    {status, values, _} = Resp.Decode.decode_all(data)
 
-    {status, value}
+    {status, values}
   end
 
   def decode(data) do
     {status, value, _} = Resp.Decode.decode(data)
 
-    {status, value}
+    {status, {value, byte_size(data)}}
   end
 
   def encode(value) do

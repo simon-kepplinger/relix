@@ -41,17 +41,17 @@ defmodule Relix.Replication.Replica do
     Logger.info("Starting handshake with master #{state.master_host}:#{state.master_port}")
 
     {:fullsync, replid, offset} =
-      with {:ok, "PONG"} <- call_socket(["PING"], state),
-           {:ok, "OK"} <- call_socket(["REPLCONF", "listening-port", "#{port}"], state),
-           {:ok, "OK"} <- call_socket(["REPLCONF", "capa", "eof"], state),
-           {:ok, resp} <- call_socket(["PSYNC", "?", "-1"], state) do
+      with {:ok, {"PONG", _}} <- call_socket(["PING"], state),
+           {:ok, {"OK", _}} <- call_socket(["REPLCONF", "listening-port", "#{port}"], state),
+           {:ok, {"OK", _}} <- call_socket(["REPLCONF", "capa", "eof"], state),
+           {:ok, {resp, _}} <- call_socket(["PSYNC", "?", "-1"], state) do
         parse_psync(resp, state)
       end
 
     Logger.info("Handshake with master successful, replid=#{replid}, offset=#{offset}")
 
     # listen for commands from master
-    Relix.Connection.start(state.socket)
+    Relix.Connection.start(state.socket, true)
 
     {:noreply, state}
   end

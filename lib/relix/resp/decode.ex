@@ -9,7 +9,8 @@ defmodule Relix.Resp.Decode do
   def decode_all(data, acc) do
     case decode(data) do
       {:ok, value, rest} ->
-        decode_all(rest, [value | acc])
+        size = byte_size(data) - byte_size(rest)
+        decode_all(rest, [{value, size} | acc])
 
       {:error, reason} ->
         {:error, reason}
