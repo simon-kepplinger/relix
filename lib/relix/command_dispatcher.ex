@@ -23,6 +23,7 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Info
   alias Relix.Commands.Replconf
   alias Relix.Commands.Psync
+  alias Relix.Commands.Wait
 
   # parse and encode commands
   def dispatch([command | data], transaction) do
@@ -31,7 +32,7 @@ defmodule Relix.CommandDispatcher do
     Logger.debug("dispatch #{command}")
     {reply, transaction} = dispatch(command, data, transaction)
 
-    {:reply, reply, transaction}
+    {:reply, command, reply, transaction}
   end
 
   def dispatch("MULTI", _, transaction) do
@@ -73,6 +74,7 @@ defmodule Relix.CommandDispatcher do
         "INFO" -> Info.dispatch(data)
         "REPLCONF" -> Replconf.dispatch(data)
         "PSYNC" -> Psync.dispatch(data)
+        "WAIT" -> Wait.dispatch(data)
         _ -> {:error, "ERR unknown command #{command}"}
       end
 

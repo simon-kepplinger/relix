@@ -51,7 +51,7 @@ defmodule Relix.Replication.Replica do
     Logger.info("Handshake with master successful, replid=#{replid}, offset=#{offset}")
 
     # listen for commands from master
-    Relix.Connection.start(state.socket, true)
+    Relix.Connection.start(state.socket, :master)
 
     {:noreply, state}
   end

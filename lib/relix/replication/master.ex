@@ -16,7 +16,7 @@ defmodule Relix.Replication.Master do
   end
 
   def register(pid) do
-    Logger.debug("Registering replica")
+    Logger.debug("registering replica")
     GenServer.call(__MODULE__, {:register, pid})
   end
 
@@ -24,9 +24,17 @@ defmodule Relix.Replication.Master do
     GenServer.cast(__MODULE__, {:propagate, command})
   end
 
+  def get_replicas do
+    GenServer.call(__MODULE__, :get_replicas)
+  end
+
   def handle_call({:register, pid}, _from, state) do
     Process.monitor(pid)
     {:reply, :ok, %{state | replicas: MapSet.put(state.replicas, pid)}}
+  end
+
+  def handle_call(:get_replicas, _from, state) do
+    {:reply, state.replicas, state}
   end
 
   def handle_cast({:propagate, command}, state) do
@@ -46,6 +54,7 @@ defmodule Relix.Replication.Master do
 
   def send_command(command, state) do
     Enum.each(state.replicas, &send(&1, {:replicate, command}))
+    Relix.Replication.incr_offset(byte_size(command))
   end
 
   def is_write_command?([command | _]) do

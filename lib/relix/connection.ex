@@ -1,4 +1,10 @@
 defmodule Relix.Connection do
+  @moduledoc """
+  Handles all kind of TCP connections.
+
+  At this point it would probably be better to split this module into multiple ones for each mode.
+  """
+
   alias Relix.Resp
   alias Relix.CommandDispatcher
 
@@ -6,13 +12,13 @@ defmodule Relix.Connection do
 
   require Logger
 
-  defstruct [:client, :transaction, is_replication_conn: false]
+  defstruct [:client, :transaction, :target, ack_caller: nil]
 
-  def start(client, is_replication \\ false) do
+  def start(client, target \\ :client) do
     {:ok, pid} =
       DynamicSupervisor.start_child(
         Relix.ConnectionSupervisor,
-        {Relix.Connection, {client, is_replication}}
+        {Relix.Connection, {client, target}}
       )
 
     :ok = :gen_tcp.controlling_process(client, pid)
@@ -22,51 +28,81 @@ defmodule Relix.Connection do
     GenServer.start_link(__MODULE__, init)
   end
 
-  def init({client, is_replication}) do
+  def init({client, target}) do
     :inet.setopts(client, active: true)
 
-    {:ok, %__MODULE__{client: client, transaction: nil, is_replication_conn: is_replication}}
+    {:ok, %__MODULE__{client: client, transaction: nil, target: target}}
   end
 
   def handle_info({:tcp, socket, data}, state) do
     Logger.debug("received #{inspect(data)}")
     {_, commands} = Resp.decode_all(data)
 
-    for {command, size} <- commands do
-      send(self(), {:command, socket, command})
-
-      if state.is_replication_conn do
-        send(self(), {:bytes_processed, size})
-      end
-    end
+    commands
+    |> Enum.each(&send(self(), {:command, socket, &1}))
 
     {:noreply, state}
   end
 
-  def handle_info({:command, socket, command}, state) do
-    {:reply, resp, transaction} = CommandDispatcher.dispatch(command, state.transaction)
+  # commands from :client
+  def handle_info({:command, socket, {command, _}}, %{target: :client} = state) do
+    invocation = CommandDispatcher.dispatch(command, state.transaction)
 
-    # prevent replicas from sending replies
-    if should_reply?(state, command) do
-      send_reply(socket, resp)
+    case invocation do
+      # on successful PSYNC, register as replica connection
+      {:reply, "PSYNC", {:batch, _} = resp, transaction} ->
+        send_reply(socket, resp)
+        Relix.Replication.Master.register(self())
+        {:noreply, %{state | transaction: transaction, target: :replica}}
+
+      # send respone to client
+      {:reply, _, resp, transaction} ->
+        send_reply(socket, resp)
+        {:noreply, %{state | transaction: transaction}}
+    end
+  end
+
+  # commands from :master
+  def handle_info({:command, socket, {command, size}}, %{target: :master} = state) do
+    invocation = CommandDispatcher.dispatch(command, state.transaction)
+    {:reply, _, _, transaction} = invocation
+
+    # only send REPLCONF response back to master
+    case invocation do
+      {:reply, "REPLCONF", resp, _} ->
+        send_reply(socket, resp)
+
+      _ ->
+        :ok
     end
 
-    # if this is a successful PSYNC command, "promote" this connection to a replica 
-    if is_psync_success?(command, resp) do
-      Relix.Replication.Master.register(self())
-    end
+    Relix.Replication.incr_offset(size)
 
     {:noreply, %{state | transaction: transaction}}
+  end
+
+  # commands from :replica
+  def handle_info({:command, _, {command, _}}, %{target: :replica} = state) do
+    ["REPLCONF", "ACK", offset] = command
+    offset = :erlang.binary_to_integer(offset)
+
+    # send offset back to wait command
+    send(state.ack_caller, {:replconf_ack, offset})
+
+    {:noreply, %{state | ack_caller: nil}}
+  end
+
+  def handle_info({:replconf_getack, caller}, %{client: client} = state) do
+    command = Resp.encode(["REPLCONF", "GETACK", "*"])
+
+    :gen_tcp.send(client, command)
+
+    {:noreply, %{state | ack_caller: caller}}
   end
 
   def handle_info({:replicate, command}, %{client: client} = state) do
     :gen_tcp.send(client, command)
 
-    {:noreply, state}
-  end
-
-  def handle_info({:bytes_processed, bytes}, state) do
-    Relix.Replication.incr_offset(bytes)
     {:noreply, state}
   end
 
@@ -86,18 +122,5 @@ defmodule Relix.Connection do
 
   def send_reply(socket, reply) do
     :gen_tcp.send(socket, Resp.encode(reply))
-  end
-
-  def should_reply?(state, [command | _]) do
-    not state.is_replication_conn or
-      String.upcase(command) == "REPLCONF"
-  end
-
-  def is_psync_success?([command | _], {:batch, _}) do
-    String.upcase(command) == "PSYNC"
-  end
-
-  def is_psync_success?(_, _) do
-    false
   end
 end
