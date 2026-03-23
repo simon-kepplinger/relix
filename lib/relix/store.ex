@@ -19,6 +19,13 @@ defmodule Relix.Store do
     {:ok, nil}
   end
 
+  def keys() do
+    :ets.select(@table, [
+      {{:"$1", :_}, [], [:"$1"]},
+      {{:"$1", :_, :_}, [], [:"$1"]}
+    ])
+  end
+
   def set(key, value) do
     :ets.insert(@table, {key, value})
   end

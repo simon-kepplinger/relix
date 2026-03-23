@@ -24,6 +24,8 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Replconf
   alias Relix.Commands.Psync
   alias Relix.Commands.Wait
+  alias Relix.Commands.Config
+  alias Relix.Commands.Keys
 
   # parse and encode commands
   def dispatch([command | data], transaction) do
@@ -75,6 +77,8 @@ defmodule Relix.CommandDispatcher do
         "REPLCONF" -> Replconf.dispatch(data)
         "PSYNC" -> Psync.dispatch(data)
         "WAIT" -> Wait.dispatch(data)
+        "CONFIG" -> Config.dispatch(data)
+        "KEYS" -> Keys.dispatch(data)
         _ -> {:error, "ERR unknown command #{command}"}
       end
 
