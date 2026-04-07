@@ -67,9 +67,12 @@ defmodule Relix.Replication.Replica do
 
     # read exact file bytes and switch back to raw mode
     :inet.setopts(state.socket, packet: :raw)
-    {:ok, rdb_data} = :gen_tcp.recv(state.socket, rdb_length, 5_000)
 
-    Logger.info("Received RDB file of size #{byte_size(rdb_data)} bytes")
+    rdb_stream(state.socket, rdb_length)
+    |> Relix.Rdb.new()
+    |> Relix.Rdb.process()
+
+    IO.puts("RDB file processed")
 
     {:fullsync, replid, String.to_integer(offset)}
   end
@@ -84,5 +87,17 @@ defmodule Relix.Replication.Replica do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp rdb_stream(socket, rdb_length, chunk_size \\ 65_536) do
+    Stream.unfold(rdb_length, fn
+      0 ->
+        nil
+
+      remaining ->
+        to_read = min(remaining, chunk_size)
+        {:ok, chunk} = :gen_tcp.recv(socket, to_read, 5_000)
+        {chunk, remaining - byte_size(chunk)}
+    end)
   end
 end
