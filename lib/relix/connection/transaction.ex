@@ -18,7 +18,7 @@ defmodule Relix.Connection.Transaction do
 
     commands
     |> Enum.map(fn {command, data} ->
-      CommandDispatcher.dispatch(command, data, nil)
+      CommandDispatcher.dispatch(command, data, nil, false)
     end)
     |> Enum.map(fn {reply, _} -> reply end)
   end

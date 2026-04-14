@@ -12,7 +12,13 @@ defmodule Relix.Connection do
 
   require Logger
 
-  defstruct [:client, :transaction, :target, ack_caller: nil]
+  defstruct [
+    :client,
+    :transaction,
+    :target,
+    subscribed: false,
+    ack_caller: nil
+  ]
 
   def start(client, target \\ :client) do
     {:ok, pid} =
@@ -46,7 +52,12 @@ defmodule Relix.Connection do
 
   # commands from :client
   def handle_info({:command, socket, {command, _}}, %{target: :client} = state) do
-    invocation = CommandDispatcher.dispatch(command, state.transaction)
+    invocation =
+      CommandDispatcher.dispatch(
+        command,
+        state.transaction,
+        state.subscribed
+      )
 
     case invocation do
       # on successful PSYNC, register as replica connection
@@ -64,7 +75,13 @@ defmodule Relix.Connection do
 
   # commands from :master
   def handle_info({:command, socket, {command, size}}, %{target: :master} = state) do
-    invocation = CommandDispatcher.dispatch(command, state.transaction)
+    invocation =
+      CommandDispatcher.dispatch(
+        command,
+        state.transaction,
+        state.subscribed
+      )
+
     {:reply, _, _, transaction} = invocation
 
     # only send REPLCONF response back to master
@@ -104,6 +121,22 @@ defmodule Relix.Connection do
     :gen_tcp.send(client, command)
 
     {:noreply, state}
+  end
+
+  def handle_info({:pubsub_message, channel, message}, %{client: client} = state) do
+    command = Resp.encode(["message", channel, message])
+
+    :gen_tcp.send(client, command)
+
+    {:noreply, state}
+  end
+
+  def handle_info(:subscribe, %{subscribed: false} = state) do
+    {:noreply, %{state | subscribed: true}}
+  end
+
+  def handle_info(:unsubscribe, %{subscribed: true} = state) do
+    {:noreply, %{state | subscribed: false}}
   end
 
   def handle_info({:tcp_closed, _socket}, state) do

@@ -26,36 +26,64 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Wait
   alias Relix.Commands.Config
   alias Relix.Commands.Keys
+  alias Relix.Commands.Subscribe
+  alias Relix.Commands.Unsubscribe
+  alias Relix.Commands.Publish
 
   # parse and encode commands
-  def dispatch([command | data], transaction) do
+  def dispatch([command | data], transaction, subscribed) do
     command = String.upcase(command)
 
     Logger.debug("dispatch #{command}")
-    {reply, transaction} = dispatch(command, data, transaction)
+    {reply, transaction} = dispatch(command, data, transaction, subscribed)
 
     {:reply, command, reply, transaction}
   end
 
-  def dispatch("MULTI", _, transaction) do
+  def dispatch("MULTI", _, transaction, false) do
     Multi.dispatch(transaction)
   end
 
-  def dispatch("EXEC", _, transaction) do
+  def dispatch("EXEC", _, transaction, false) do
     Exec.dispatch(transaction)
   end
 
-  def dispatch("DISCARD", _, transaction) do
+  def dispatch("DISCARD", _, transaction, false) do
     Discard.dispatch(transaction)
   end
 
-  def dispatch(command, data, %Transaction{} = transaction) do
+  # queue commands to a transaction
+  def dispatch(command, data, %Transaction{} = transaction, false) do
     transaction = Transaction.queue(transaction, command, data)
 
     {{:simple, "QUEUED"}, transaction}
   end
 
-  def dispatch(command, data, nil) do
+  # execute commands in subscribed mode
+  def dispatch(command, data, _, true) do
+    reply =
+      case command do
+        "PING" -> Ping.dispatch()
+        "SUBSCRIBE" -> Subscribe.dispatch(data)
+        "UNSUBSCRIBE" -> Unsubscribe.dispatch(data)
+        "PUBLISH" -> Publish.dispatch(data)
+        _ -> {:error, "ERR Can't execute '#{command}' in subscribed mode"}
+      end
+
+    Relix.Replication.Master.propagate([command | data])
+
+    # special encode in subscribed mode
+    reply =
+      case reply do
+        {:simple, res} -> [String.downcase(res), ""]
+        res -> res
+      end
+
+    {reply, nil}
+  end
+
+  # execute commands
+  def dispatch(command, data, nil, false) do
     reply =
       case command do
         "PING" -> Ping.dispatch()
@@ -79,6 +107,9 @@ defmodule Relix.CommandDispatcher do
         "WAIT" -> Wait.dispatch(data)
         "CONFIG" -> Config.dispatch(data)
         "KEYS" -> Keys.dispatch(data)
+        "SUBSCRIBE" -> Subscribe.dispatch(data)
+        "UNSUBSCRIBE" -> Unsubscribe.dispatch(data)
+        "PUBLISH" -> Publish.dispatch(data)
         _ -> {:error, "ERR unknown command #{command}"}
       end
 
