@@ -18,6 +18,7 @@ defmodule Relix.Application do
         Relix.Config,
         Relix.Store,
         Relix.Store.Stream,
+        Relix.Store.SortedSet,
         Relix.Replication,
         Relix.Replication.Master,
         replicaof != nil && {Relix.Replication.Replica, replicaof},

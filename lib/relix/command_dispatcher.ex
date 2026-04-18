@@ -29,6 +29,12 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Subscribe
   alias Relix.Commands.Unsubscribe
   alias Relix.Commands.Publish
+  alias Relix.Commands.Zadd
+  alias Relix.Commands.Zrank
+  alias Relix.Commands.Zrange
+  alias Relix.Commands.Zscore
+  alias Relix.Commands.Zrem
+  alias Relix.Commands.Zcard
 
   # parse and encode commands
   def dispatch([command | data], transaction, subscribed) do
@@ -110,6 +116,12 @@ defmodule Relix.CommandDispatcher do
         "SUBSCRIBE" -> Subscribe.dispatch(data)
         "UNSUBSCRIBE" -> Unsubscribe.dispatch(data)
         "PUBLISH" -> Publish.dispatch(data)
+        "ZADD" -> Zadd.dispatch(data)
+        "ZRANK" -> Zrank.dispatch(data)
+        "ZRANGE" -> Zrange.dispatch(data)
+        "ZSCORE" -> Zscore.dispatch(data)
+        "ZREM" -> Zrem.dispatch(data)
+        "ZCARD" -> Zcard.dispatch(data)
         _ -> {:error, "ERR unknown command #{command}"}
       end
 
