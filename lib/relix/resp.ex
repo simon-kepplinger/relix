@@ -33,8 +33,12 @@ defmodule Relix.Resp do
       binary when is_binary(binary) ->
         "$" <> Integer.to_string(byte_size(binary)) <> "\r\n" <> binary <> "\r\n"
 
-      number when is_number(number) ->
-        ":" <> Integer.to_string(number) <> "\r\n"
+      integer when is_integer(integer) ->
+        ":" <> Integer.to_string(integer) <> "\r\n"
+
+      float when is_float(float) ->
+        str = Float.to_string(float)
+        "$" <> Integer.to_string(byte_size(str)) <> "\r\n" <> str <> "\r\n"
 
       tuple when is_tuple(tuple) ->
         Tuple.to_list(tuple)

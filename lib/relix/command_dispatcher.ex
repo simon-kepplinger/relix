@@ -35,6 +35,10 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Zscore
   alias Relix.Commands.Zrem
   alias Relix.Commands.Zcard
+  alias Relix.Commands.Geoadd
+  alias Relix.Commands.Geopos
+  alias Relix.Commands.Geodist
+  alias Relix.Commands.Geosearch
 
   # parse and encode commands
   def dispatch([command | data], transaction, subscribed) do
@@ -122,6 +126,10 @@ defmodule Relix.CommandDispatcher do
         "ZSCORE" -> Zscore.dispatch(data)
         "ZREM" -> Zrem.dispatch(data)
         "ZCARD" -> Zcard.dispatch(data)
+        "GEOADD" -> Geoadd.dispatch(data)
+        "GEOPOS" -> Geopos.dispatch(data)
+        "GEODIST" -> Geodist.dispatch(data)
+        "GEOSEARCH" -> Geosearch.dispatch(data)
         _ -> {:error, "ERR unknown command #{command}"}
       end
 
