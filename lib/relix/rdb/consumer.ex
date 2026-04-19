@@ -71,8 +71,12 @@ defmodule Relix.Rdb.Consumer do
   end
 
   # EOF
-  defp parse(<<0xFF, checksum::64>>) do
+  defp parse(<<0xFF, checksum::64, _::binary>>) do
     {:eof, checksum}
+  end
+
+  defp parse(<<0xFF, rest::binary>>) when byte_size(rest) < 8 do
+    :incomplete
   end
 
   defp parse(data) do
