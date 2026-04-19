@@ -39,38 +39,59 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Geopos
   alias Relix.Commands.Geodist
   alias Relix.Commands.Geosearch
+  alias Relix.Commands.Auth
+  alias Relix.Commands.Acl
 
   # parse and encode commands
-  def dispatch([command | data], transaction, subscribed) do
+  def dispatch([command | data], transaction, subscribed, authenticated) do
     command = String.upcase(command)
 
     Logger.debug("dispatch #{command}")
-    {reply, transaction} = dispatch(command, data, transaction, subscribed)
+
+    {reply, transaction} =
+      dispatch(
+        command,
+        data,
+        transaction,
+        subscribed,
+        authenticated
+      )
 
     {:reply, command, reply, transaction}
   end
 
-  def dispatch("MULTI", _, transaction, false) do
+  # only allow AUTH if not authenticated
+  def dispatch("AUTH", data, nil, false, false) do
+    {Auth.dispatch(data), nil}
+  end
+
+  # on unauthenticated
+  def dispatch(_, _, _, _, false) do
+    {{:error, "NOAUTH Authentication required."}, nil}
+  end
+
+  # transaction control commands
+  def dispatch("MULTI", _, transaction, false, true) do
     Multi.dispatch(transaction)
   end
 
-  def dispatch("EXEC", _, transaction, false) do
+  def dispatch("EXEC", _, transaction, false, true) do
     Exec.dispatch(transaction)
   end
 
-  def dispatch("DISCARD", _, transaction, false) do
+  def dispatch("DISCARD", _, transaction, false, true) do
     Discard.dispatch(transaction)
   end
 
   # queue commands to a transaction
-  def dispatch(command, data, %Transaction{} = transaction, false) do
+  def dispatch(command, data, %Transaction{} = transaction, false, true) do
     transaction = Transaction.queue(transaction, command, data)
 
     {{:simple, "QUEUED"}, transaction}
   end
 
   # execute commands in subscribed mode
-  def dispatch(command, data, _, true) do
+  def dispatch(command, data, _, true, true) do
     reply =
       case command do
         "PING" -> Ping.dispatch()
@@ -93,7 +114,7 @@ defmodule Relix.CommandDispatcher do
   end
 
   # execute commands
-  def dispatch(command, data, nil, false) do
+  def dispatch(command, data, nil, false, true) do
     reply =
       case command do
         "PING" -> Ping.dispatch()
@@ -130,6 +151,8 @@ defmodule Relix.CommandDispatcher do
         "GEOPOS" -> Geopos.dispatch(data)
         "GEODIST" -> Geodist.dispatch(data)
         "GEOSEARCH" -> Geosearch.dispatch(data)
+        "AUTH" -> Auth.dispatch(data)
+        "ACL" -> Acl.dispatch(data)
         _ -> {:error, "ERR unknown command #{command}"}
       end
 

@@ -12,10 +12,10 @@ defmodule Relix.Config do
   end
 
   def init(_) do
-    dir = Application.get_env(:relix, :dir)
-    dbfilename = Application.get_env(:relix, :dbfilename)
-
-    {:ok, %__MODULE__{dir: dir, dbfilename: dbfilename}}
+    {:ok, %__MODULE__{
+      dir: Application.get_env(:relix, :dir),
+      dbfilename: Application.get_env(:relix, :dbfilename)
+    }}
   end
 
   def handle_call({:get, key}, _from, state) do

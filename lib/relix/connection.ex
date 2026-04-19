@@ -17,6 +17,7 @@ defmodule Relix.Connection do
     :transaction,
     :target,
     subscribed: false,
+    authenticated: false,
     ack_caller: nil
   ]
 
@@ -36,8 +37,17 @@ defmodule Relix.Connection do
 
   def init({client, target}) do
     :inet.setopts(client, active: true)
+    nopass = Relix.Acl.get_user("default").nopass
 
-    {:ok, %__MODULE__{client: client, transaction: nil, target: target}}
+    {
+      :ok,
+      %__MODULE__{
+        client: client,
+        transaction: nil,
+        target: target,
+        authenticated: nopass
+      }
+    }
   end
 
   def handle_info({:tcp, socket, data}, state) do
@@ -56,7 +66,8 @@ defmodule Relix.Connection do
       CommandDispatcher.dispatch(
         command,
         state.transaction,
-        state.subscribed
+        state.subscribed,
+        state.authenticated
       )
 
     case invocation do
@@ -65,6 +76,11 @@ defmodule Relix.Connection do
         send_reply(socket, resp)
         Relix.Replication.Master.register(self())
         {:noreply, %{state | transaction: transaction, target: :replica}}
+
+      # on successful AUTH, mark connection as authenticated
+      {:reply, "AUTH", {:simple, "OK"} = resp, transaction} ->
+        send_reply(socket, resp)
+        {:noreply, %{state | transaction: transaction, authenticated: true}}
 
       # send respone to client
       {:reply, _, resp, transaction} ->
@@ -79,7 +95,8 @@ defmodule Relix.Connection do
       CommandDispatcher.dispatch(
         command,
         state.transaction,
-        state.subscribed
+        state.subscribed,
+        true
       )
 
     {:reply, _, _, transaction} = invocation

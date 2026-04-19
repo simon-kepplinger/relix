@@ -5,7 +5,8 @@ defmodule Relix.Application do
     port: :integer,
     replicaof: :string,
     dir: :string,
-    dbfilename: :string
+    dbfilename: :string,
+    requirepass: :string
   ]
 
   def start(_type, _args) do
@@ -16,6 +17,7 @@ defmodule Relix.Application do
     children =
       [
         Relix.Config,
+        Relix.Acl,
         Relix.Store,
         Relix.Store.Stream,
         Relix.Store.SortedSet,
