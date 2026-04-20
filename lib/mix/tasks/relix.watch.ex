@@ -111,6 +111,12 @@ defmodule Mix.Tasks.Relix.Watch do
   end
 
   defp ignore_patterns do
-    ["/_build/", "/deps/", "/.git/", ".elixir_ls"]
+    [
+      "/_build/",
+      "/deps/",
+      "/.git/",
+      ".elixir_ls",
+      "appendonlydir/"
+    ]
   end
 end

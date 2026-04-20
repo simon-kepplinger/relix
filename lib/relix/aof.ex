@@ -8,16 +8,22 @@ defmodule Relix.Aof do
   end
 
   def write([key | _] = command) do
+    pid = Process.whereis(__MODULE__)
+
     with true <- Relix.CommandDispatcher.write_command?(key),
-         true <- Process.whereis(__MODULE__) != nil do
-      GenServer.call(__MODULE__, {:write, Relix.Resp.encode(command)})
+         true <- pid != nil and pid != self() do
+      GenServer.call(pid, {:write, Relix.Resp.encode(command)})
     end
   end
 
   def init(_) do
     manifest_path = ensure_files()
     %{filename: filename} = read_manifest(manifest_path)
-    {:ok, file} = File.open(to_aof_path(filename), [:append])
+    aof_path = to_aof_path(filename)
+
+    Relix.Aof.Replay.replay(aof_path)
+
+    {:ok, file} = File.open(aof_path, [:append])
     {:ok, %{file: file, appendfsync: Config.get(:appendfsync)}}
   end
 

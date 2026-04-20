@@ -1,5 +1,10 @@
 defmodule Relix.CommandContext do
-  defstruct [:transaction, subscribed: false, authenticated: false, dirty_watch: false]
+  defstruct [
+    :transaction,
+    subscribed: false,
+    authenticated: false,
+    dirty_watch: false
+  ]
 end
 
 defmodule Relix.CommandDispatcher do
