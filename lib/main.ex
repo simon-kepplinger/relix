@@ -23,6 +23,7 @@ defmodule Relix.Application do
         Relix.Store.SortedSet,
         Relix.Replication,
         Relix.Replication.Master,
+        Relix.Keyspace.Watch,
         replicaof != nil && {Relix.Replication.Replica, replicaof},
         {Registry, keys: :unique, name: Relix.Keyspace.Registry},
         {Registry, keys: :duplicate, name: Relix.PubSub.Registry},

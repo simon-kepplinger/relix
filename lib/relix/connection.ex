@@ -7,6 +7,7 @@ defmodule Relix.Connection do
 
   alias Relix.Resp
   alias Relix.CommandDispatcher
+  alias Relix.CommandContext
 
   use GenServer
 
@@ -18,6 +19,7 @@ defmodule Relix.Connection do
     :target,
     subscribed: false,
     authenticated: false,
+    dirty_watch: false,
     ack_caller: nil
   ]
 
@@ -62,13 +64,14 @@ defmodule Relix.Connection do
 
   # commands from :client
   def handle_info({:command, socket, {command, _}}, %{target: :client} = state) do
-    invocation =
-      CommandDispatcher.dispatch(
-        command,
-        state.transaction,
-        state.subscribed,
-        state.authenticated
-      )
+    ctx = %CommandContext{
+      transaction: state.transaction,
+      subscribed: state.subscribed,
+      authenticated: state.authenticated,
+      dirty_watch: state.dirty_watch
+    }
+
+    invocation = CommandDispatcher.dispatch(command, ctx)
 
     case invocation do
       # on successful PSYNC, register as replica connection
@@ -91,13 +94,14 @@ defmodule Relix.Connection do
 
   # commands from :master
   def handle_info({:command, socket, {command, size}}, %{target: :master} = state) do
-    invocation =
-      CommandDispatcher.dispatch(
-        command,
-        state.transaction,
-        state.subscribed,
-        true
-      )
+    ctx = %CommandContext{
+      transaction: state.transaction,
+      subscribed: state.subscribed,
+      authenticated: true,
+      dirty_watch: state.dirty_watch
+    }
+
+    invocation = CommandDispatcher.dispatch(command, ctx)
 
     {:reply, _, _, transaction} = invocation
 
@@ -154,6 +158,14 @@ defmodule Relix.Connection do
 
   def handle_info(:unsubscribe, %{subscribed: true} = state) do
     {:noreply, %{state | subscribed: false}}
+  end
+
+  def handle_info(:dirty_watch, state) do
+    {:noreply, %{state | dirty_watch: true}}
+  end
+
+  def handle_info(:unwatch, state) do
+    {:noreply, %{state | dirty_watch: false}}
   end
 
   def handle_info({:tcp_closed, _socket}, state) do

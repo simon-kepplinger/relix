@@ -3,7 +3,13 @@ defmodule Relix.Replication.Master do
 
   require Logger
 
-  @write_commands MapSet.new(["SET", "DEL", "INCR", "DECR", "LPUSH", "LPOP", "BLPOP", "XADD"])
+  @write_commands MapSet.new([
+    "SET", "DEL", "INCR", "DECR",
+    "LPUSH", "RPUSH", "LPOP", "BLPOP",
+    "XADD",
+    "ZADD", "ZREM",
+    "GEOADD"
+  ])
 
   defstruct replicas: MapSet.new()
 
@@ -42,6 +48,7 @@ defmodule Relix.Replication.Master do
       command
       |> Relix.Resp.encode()
       |> send_command(state)
+
     end
 
     {:noreply, state}

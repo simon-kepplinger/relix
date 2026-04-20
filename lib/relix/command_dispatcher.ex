@@ -1,7 +1,12 @@
+defmodule Relix.CommandContext do
+  defstruct [:transaction, subscribed: false, authenticated: false, dirty_watch: false]
+end
+
 defmodule Relix.CommandDispatcher do
   require Logger
 
   alias Relix.Connection.Transaction
+  alias Relix.CommandContext
 
   alias Relix.Commands.Ping
   alias Relix.Commands.Echo
@@ -41,57 +46,32 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Geosearch
   alias Relix.Commands.Auth
   alias Relix.Commands.Acl
+  alias Relix.Commands.Watch
+  alias Relix.Commands.Unwatch
 
   # parse and encode commands
-  def dispatch([command | data], transaction, subscribed, authenticated) do
+  def dispatch([command | data], %CommandContext{} = ctx) do
     command = String.upcase(command)
 
     Logger.debug("dispatch #{command}")
 
-    {reply, transaction} =
-      dispatch(
-        command,
-        data,
-        transaction,
-        subscribed,
-        authenticated
-      )
+    {reply, transaction} = dispatch(command, data, ctx)
 
     {:reply, command, reply, transaction}
   end
 
   # only allow AUTH if not authenticated
-  def dispatch("AUTH", data, nil, false, false) do
+  def dispatch("AUTH", data, %CommandContext{authenticated: false}) do
     {Auth.dispatch(data), nil}
   end
 
   # on unauthenticated
-  def dispatch(_, _, _, _, false) do
+  def dispatch(_, _, %CommandContext{authenticated: false}) do
     {{:error, "NOAUTH Authentication required."}, nil}
   end
 
-  # transaction control commands
-  def dispatch("MULTI", _, transaction, false, true) do
-    Multi.dispatch(transaction)
-  end
-
-  def dispatch("EXEC", _, transaction, false, true) do
-    Exec.dispatch(transaction)
-  end
-
-  def dispatch("DISCARD", _, transaction, false, true) do
-    Discard.dispatch(transaction)
-  end
-
-  # queue commands to a transaction
-  def dispatch(command, data, %Transaction{} = transaction, false, true) do
-    transaction = Transaction.queue(transaction, command, data)
-
-    {{:simple, "QUEUED"}, transaction}
-  end
-
   # execute commands in subscribed mode
-  def dispatch(command, data, _, true, true) do
+  def dispatch(command, data, %CommandContext{subscribed: true}) do
     reply =
       case command do
         "PING" -> Ping.dispatch()
@@ -113,8 +93,40 @@ defmodule Relix.CommandDispatcher do
     {reply, nil}
   end
 
+  # EXEC on dirty watch should fail
+  def dispatch("EXEC", _, %CommandContext{dirty_watch: true}) do
+    Unwatch.dispatch()
+    {:null_array, nil}
+  end
+
+  # transaction control commands
+  def dispatch("MULTI", _, %CommandContext{transaction: transaction}) do
+    Multi.dispatch(transaction)
+  end
+
+  def dispatch("EXEC", _, %CommandContext{transaction: transaction}) do
+    Unwatch.dispatch()
+    Exec.dispatch(transaction)
+  end
+
+  def dispatch("DISCARD", _, %CommandContext{transaction: transaction}) do
+    Unwatch.dispatch()
+    Discard.dispatch(transaction)
+  end
+
+  def dispatch("WATCH", _, %CommandContext{transaction: %Transaction{} = transaction}) do
+    {{:error, "ERR WATCH inside MULTI is not allowed"}, transaction}
+  end
+
+  # queue commands to a transaction
+  def dispatch(command, data, %CommandContext{transaction: %Transaction{} = transaction}) do
+    transaction = Transaction.queue(transaction, command, data)
+
+    {{:simple, "QUEUED"}, transaction}
+  end
+
   # execute commands
-  def dispatch(command, data, nil, false, true) do
+  def dispatch(command, data, %CommandContext{}) do
     reply =
       case command do
         "PING" -> Ping.dispatch()
@@ -153,9 +165,12 @@ defmodule Relix.CommandDispatcher do
         "GEOSEARCH" -> Geosearch.dispatch(data)
         "AUTH" -> Auth.dispatch(data)
         "ACL" -> Acl.dispatch(data)
+        "WATCH" -> Watch.dispatch(data)
+        "UNWATCH" -> Unwatch.dispatch()
         _ -> {:error, "ERR unknown command #{command}"}
       end
 
+    Relix.Keyspace.Watch.notify_write(command, data)
     Relix.Replication.Master.propagate([command | data])
 
     {reply, nil}
