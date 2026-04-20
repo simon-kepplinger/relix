@@ -36,10 +36,10 @@ defmodule Relix.Keyspace.Watch do
     |> Enum.each(fn {_, pid} -> send(pid, :dirty_watch) end)
   end
 
-  @write_commands ~w(SET DEL INCR DECR LPUSH RPUSH LPOP BLPOP XADD ZADD ZREM GEOADD)
-
-  def notify_write(command, [key | _]) when command in @write_commands do
-    notify(key)
+  def notify_write(command, [key | _]) do
+    if Relix.CommandDispatcher.write_command?(command) do
+      notify(key)
+    end
   end
 
   def notify_write(_, _), do: :ok

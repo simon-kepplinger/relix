@@ -1,7 +1,63 @@
 defmodule Relix.Aof do
+  use GenServer
+
   alias Relix.Config
 
-  def ensure do
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
+  end
+
+  def write([key | _] = command) do
+    with true <- Relix.CommandDispatcher.write_command?(key),
+         true <- Process.whereis(__MODULE__) != nil do
+      GenServer.call(__MODULE__, {:write, Relix.Resp.encode(command)})
+    end
+  end
+
+  def init(_) do
+    manifest_path = ensure_files()
+    %{filename: filename} = read_manifest(manifest_path)
+    {:ok, file} = File.open(to_aof_path(filename), [:append])
+    {:ok, %{file: file, appendfsync: Config.get(:appendfsync)}}
+  end
+
+  def terminate(_reason, %{file: file}) do
+    File.close(file)
+  end
+
+  def handle_call({:write, command}, _from, %{file: file, appendfsync: "always"} = state) do
+    IO.write(file, command)
+    :file.sync(file)
+
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:write, command}, _from, %{file: file} = state) do
+    IO.write(file, command)
+    {:reply, :ok, state}
+  end
+
+  defp read_manifest(manifest_path) do
+    manifest_path
+    |> File.read!()
+    |> String.trim()
+    |> String.split("\n")
+    |> Enum.map(&parse_manifest_line/1)
+    |> List.first()
+  end
+
+  defp to_aof_path(filename) do
+    Config.get(:dir)
+    |> Path.join(Config.get(:appenddirname))
+    |> Path.join(filename)
+  end
+
+  defp parse_manifest_line(line) do
+    [_, filename, _, seq_str, _, type] = String.split(line)
+    %{filename: filename, seq: String.to_integer(seq_str), type: type}
+  end
+
+  defp ensure_files do
     base_dir = Config.get(:dir)
     dirname = Config.get(:appenddirname)
     filename = Config.get(:appendfilename)
@@ -21,6 +77,6 @@ defmodule Relix.Aof do
       File.write!(manifest_path, "file #{aof_filename} seq 1 type i")
     end
 
-    path
+    manifest_path
   end
 end

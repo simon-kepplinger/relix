@@ -17,6 +17,7 @@ defmodule Relix.Application do
     setup_envs()
 
     replicaof = Application.get_env(:relix, :replicaof)
+    appendonly = Application.get_env(:relix, :appendonly)
 
     children =
       [
@@ -28,6 +29,7 @@ defmodule Relix.Application do
         Relix.Replication,
         Relix.Replication.Master,
         Relix.Keyspace.Watch,
+        appendonly == "yes" && Relix.Aof,
         replicaof != nil && {Relix.Replication.Replica, replicaof},
         {Registry, keys: :unique, name: Relix.Keyspace.Registry},
         {Registry, keys: :duplicate, name: Relix.PubSub.Registry},

@@ -3,14 +3,6 @@ defmodule Relix.Replication.Master do
 
   require Logger
 
-  @write_commands MapSet.new([
-    "SET", "DEL", "INCR", "DECR",
-    "LPUSH", "RPUSH", "LPOP", "BLPOP",
-    "XADD",
-    "ZADD", "ZREM",
-    "GEOADD"
-  ])
-
   defstruct replicas: MapSet.new()
 
   def start_link(_) do
@@ -43,12 +35,11 @@ defmodule Relix.Replication.Master do
     {:reply, state.replicas, state}
   end
 
-  def handle_cast({:propagate, command}, state) do
-    if is_write_command?(command) do
-      command
+  def handle_cast({:propagate, [command | _] = full_command}, state) do
+    if Relix.CommandDispatcher.write_command?(command) do
+      full_command
       |> Relix.Resp.encode()
       |> send_command(state)
-
     end
 
     {:noreply, state}
@@ -64,7 +55,4 @@ defmodule Relix.Replication.Master do
     Relix.Replication.incr_offset(byte_size(command))
   end
 
-  def is_write_command?([command | _]) do
-    MapSet.member?(@write_commands, String.upcase(command))
-  end
 end

@@ -49,6 +49,12 @@ defmodule Relix.CommandDispatcher do
   alias Relix.Commands.Watch
   alias Relix.Commands.Unwatch
 
+  @write_commands ~w(SET DEL INCR DECR LPUSH RPUSH LPOP BLPOP XADD ZADD ZREM GEOADD)
+
+  def write_command?(command) do
+    String.upcase(command) in @write_commands
+  end
+
   # parse and encode commands
   def dispatch([command | data], %CommandContext{} = ctx) do
     command = String.upcase(command)
@@ -80,8 +86,6 @@ defmodule Relix.CommandDispatcher do
         "PUBLISH" -> Publish.dispatch(data)
         _ -> {:error, "ERR Can't execute '#{command}' in subscribed mode"}
       end
-
-    Relix.Replication.Master.propagate([command | data])
 
     # special encode in subscribed mode
     reply =
@@ -172,6 +176,7 @@ defmodule Relix.CommandDispatcher do
 
     Relix.Keyspace.Watch.notify_write(command, data)
     Relix.Replication.Master.propagate([command | data])
+    Relix.Aof.write([command | data])
 
     {reply, nil}
   end
