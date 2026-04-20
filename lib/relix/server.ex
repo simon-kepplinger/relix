@@ -23,12 +23,17 @@ defmodule Relix.Server do
   def handle_cast({:listen, port}, _) do
     dir = Config.get(:dir)
     dbfilename = Config.get(:dbfilename)
+    appendonly = Config.get(:appendonly)
 
     Logger.info("oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo")
     Logger.info("Running mode=standalone, port=#{port}.")
 
     if dir && dbfilename do
       read_rdb(dir, dbfilename)
+    end
+
+    if appendonly == "yes" do
+      Relix.Aof.ensure()
     end
 
     {:ok, socket} = :gen_tcp.listen(port, [:binary, active: false, reuseaddr: true])

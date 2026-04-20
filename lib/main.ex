@@ -6,7 +6,11 @@ defmodule Relix.Application do
     replicaof: :string,
     dir: :string,
     dbfilename: :string,
-    requirepass: :string
+    requirepass: :string,
+    appendonly: :string,
+    appenddirname: :string,
+    appendfilename: :string,
+    appendfsync: :string
   ]
 
   def start(_type, _args) do
